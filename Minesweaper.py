@@ -1,11 +1,10 @@
 __author__ = 'Alastair'
 import random, pygame, sys, time
-from pygame.locals import *#
-
-BOARDWIDTH = 100
-BOARDHEIGHT = 100
+from pygame.locals import *
+BOARDWIDTH = 20
+BOARDHEIGHT = 20
 SQUARESIZE = 20
-MINES = 1000
+MINES = 60
 WINDOWWIDTH = (BOARDWIDTH * SQUARESIZE) + 1
 WINDOWHEIGHT = (BOARDHEIGHT * SQUARESIZE) + 1
 FPS = 30
@@ -18,6 +17,7 @@ PressedSquare = pygame.image.load('MinesweaperPressedSquare.jpg')
 MouseSquare = pygame.image.load('MinesweaperMouseSquare.jpg')
 Mine = pygame.image.load('MinesweaperMine.jpg')
 Flag = pygame.image.load('MinesweaperFlag.jpg')
+ExplodedMine = pygame.image.load('MinesweaperExplodedMine.jpg')
 num = [0] * 8
 num[0] = pygame.image.load('Minesweeper_1.png')  # Loads in number pictures
 num[1] = pygame.image.load('Minesweeper_2.png')
@@ -38,17 +38,18 @@ def main():
     mousex = 0
     mousey = 0
     currentSquare = [0, 0]
+    GameOver = False
     pygame.display.set_caption('Minesweaper')
     DISPLAYSURF.fill(BGCOLOUR)
     MINELOCATION = generateBoard(MINES)  # Generates mine locations and numbers
     GAMEBOARD = [[3 for j in range(BOARDHEIGHT)] for i in range(BOARDWIDTH)]  # Sets all squares to blank (3 is blank 0 is uncovered)
-
     while True:
         mouseClicked = False
         checkwin(GAMEBOARD, MINELOCATION, currentSquare)
-        DISPLAYSURF.fill(BGCOLOUR)
         drawBoard(GAMEBOARD, MINELOCATION, currentSquare)
         MouseDown = False
+        if GameOver:
+            gameOver(MINELOCATION, GAMEBOARD, currentSquare)
         for event in pygame.event.get(): # event handling loop
             if event.type == QUIT or (event.type == KEYUP and event.key == K_ESCAPE):
                 pygame.quit()
@@ -69,21 +70,50 @@ def main():
             if buttonPressed == 1:
                 if GAMEBOARD[boxx][boxy] != 0:
                     if MINELOCATION[boxx][boxy] == "mine":
-                        gameOver()
+                        GameOver = True
                     else:
                         if MINELOCATION[boxx][boxy] == 0:
                             GAMEBOARD = uncoverSquares(GAMEBOARD, MINELOCATION, boxx, boxy)
                         else:
                             GAMEBOARD[boxx][boxy] = 0
             if buttonPressed == 3:
-                if GAMEBOARD[boxx][boxy] != 0:
+                if GAMEBOARD[boxx][boxy] == 3:
                     GAMEBOARD[boxx][boxy] = 1
+                elif GAMEBOARD[boxx][boxy] == 1:
+                    GAMEBOARD[boxx][boxy] = 3
+            if buttonPressed == 2:
+                if GAMEBOARD[boxx][boxy] == 0:
+                    mineNum = 0
+                    for i in [[1, 1], [1, 0], [1, -1], [0, 1], [0, -1], [-1, 1], [-1, 0], [-1, -1]]:
+                        try:
+                            if (boxx + i[0]) >= 0 and (boxy + i[1]) >= 0:
+                                if GAMEBOARD[boxx + i[0]][boxy + i[1]] == 1:
+                                    mineNum += 1
+                        except IndexError:
+                            pass
+                    if mineNum == MINELOCATION[boxx][boxy]:
+                        for i in [[1, 1], [1, 0], [1, -1], [0, 1], [0, -1], [-1, 1], [-1, 0], [-1, -1]]:
+                            try:
+                                if (boxx + i[0]) >= 0 and (boxy + i[1]) >= 0:
+                                    if GAMEBOARD[boxx + i[0]][boxy + i[1]] == 3:
+                                        if MINELOCATION[boxx + i[0]][boxy + i[1]] == 0:
+                                            GAMEBOARD = uncoverSquares(GAMEBOARD, MINELOCATION, boxx + i[0], boxy + i[1])
+                                        elif MINELOCATION[boxx + i[0]][boxy + i[1]] == "mine":
+                                            GameOver = True
+                                        else:
+                                            GAMEBOARD[boxx + i[0]][boxy + i[1]] = 0
+                            except IndexError:
+                                pass
+
+
+
 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
 
 
 def drawBoard(GAMEBOARD, MINELOCATION, currantSquare):
+    DISPLAYSURF.fill(BGCOLOUR)
     for LINES in range(0, WINDOWWIDTH, SQUARESIZE):
         pygame.draw.line(DISPLAYSURF, BLACK, (LINES, 0), (LINES, WINDOWHEIGHT))
     for LINES in range(0, WINDOWHEIGHT, SQUARESIZE):
@@ -100,9 +130,11 @@ def drawBoard(GAMEBOARD, MINELOCATION, currantSquare):
                 DISPLAYSURF.blit(Flag, (xcoord, ycoord))
             else:
                 DISPLAYSURF.blit(Square, (xcoord, ycoord))
+    coordx, coordy = getCoordsOfBox(currantSquare[0], currantSquare[1])
     if GAMEBOARD[currantSquare[0]][currantSquare[1]] == 3:
-        coordx, coordy = getCoordsOfBox(currantSquare[0], currantSquare[1])
         DISPLAYSURF.blit(MouseSquare, (coordx, coordy))
+    elif GAMEBOARD[currantSquare[0]][currantSquare[1]] == 0 and MINELOCATION[currantSquare[0]][currantSquare[1]] == "mine":
+        DISPLAYSURF.blit(ExplodedMine, (coordx, coordy))
 
 
 def getCoordsOfBox(x, y):
@@ -123,29 +155,16 @@ def getBoxAtPixle(xcoord, ycoord):
         return x, y
 
 
-def gameOver():
-    i = 0
-    p = 0
-    j = 0
-    k = 255
+def gameOver(MINELOCATION, GAMEBOARD, currentSquare):
+    for boxX in range(BOARDWIDTH):
+        for boxY in range(BOARDHEIGHT):
+            if MINELOCATION[boxX][boxY] == "mine":
+                GAMEBOARD[boxX][boxY] = 0
+    drawBoard(GAMEBOARD, MINELOCATION, currentSquare)
     myfont = pygame.font.SysFont("impact", 60)
+    message = myfont.render("You Loose", 1, BLACK)
+    DISPLAYSURF.blit(message, (80, 80))
     while True:
-        if i < 101:
-            if i % 3 == 0:
-                DISPLAYSURF.fill((255, 51 + p, 51 + p))
-            elif i % 3 == 1:
-                DISPLAYSURF.fill((255, 153 + j, 51 + p))
-            elif i % 3 == 2:
-                DISPLAYSURF.fill((255, 225, 51 + p))
-            if i % 2 == 0:
-                j += 2
-            i += 1
-            p += 2
-        if k > 2 and i % 2 == 1:
-            k -= 2
-        message = myfont.render("You Loose", 1, (k, k, k))
-        DISPLAYSURF.blit(message, (80, 80))
-
         for event in pygame.event.get(): # event handling loop
             if event.type == QUIT or (event.type == KEYUP and event.key == K_ESCAPE):
                 pygame.quit()
