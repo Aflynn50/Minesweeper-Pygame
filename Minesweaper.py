@@ -1,5 +1,5 @@
 __author__ = 'Alastair'
-import random, pygame, sys, time, math
+import random, pygame, sys, time
 from pygame.locals import *
 BOARDWIDTH = 0
 BOARDHEIGHT = 0
@@ -18,9 +18,10 @@ BGCOLOUR = GRAY
 Square = pygame.image.load('MinesweaperSquare20px.jpg')  # Loads in icons
 PressedSquare = pygame.image.load('MinesweaperPressedSquare.jpg')
 MouseSquare = pygame.image.load('MinesweaperMouseSquare.jpg')
-Mine = pygame.image.load('MinesweaperMine.jpg')
+Mine = pygame.image.load('MinesweaperMine.png')
 Flag = pygame.image.load('MinesweaperFlag.jpg')
-ExplodedMine = pygame.image.load('MinesweaperExplodedMine.jpg')
+ExplodedMine = pygame.image.load('MinesweaperExplodedMine.png')
+FalseMine = pygame.image.load('MinesweaperFalseMine.png')
 UnpressedButton = pygame.image.load('MinesweaperUnpressedButton.png')
 PressedButton = pygame.image.load('MinesweaperPressedButton.png')
 num = [0] * 8
@@ -44,7 +45,7 @@ def main():
     WINDOWHEIGHT = (BOARDHEIGHT * SQUARESIZE) + 1
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
     TimeStart = time.clock()
-    pygame.display.set_caption('Minesweaper :o  ' + str(180 - math.floor(time.clock())) + ' seconds')
+    pygame.display.set_caption('Minesweaper :o  ' + str(180 - int(time.clock() // 1)) + ' seconds')
     currentSquare = [0, 0]
     GameOver = False
     DISPLAYSURF.fill(BGCOLOUR)
@@ -54,14 +55,14 @@ def main():
         face = ":)"
         mouseClicked = False
         checkwin(GAMEBOARD, MINELOCATION, currentSquare)
-        drawBoard(GAMEBOARD, MINELOCATION, currentSquare)
+        drawBoard(GAMEBOARD, MINELOCATION, currentSquare, False)
         MouseDown = False
-        if MODE == "Time trial" and 180 - math.floor(time.clock()) <= 0:
+        if MODE == "Time trial" and 180 - int(time.clock() // 1) <= 0:
             gameOver(MINELOCATION, GAMEBOARD, currentSquare)
         elif MODE == "Time trial":
-            currentTime = 180 - math.floor(time.clock())
+            currentTime = 180 - int(time.clock() // 1)
         else:
-            currentTime = math.floor(time.clock())
+            currentTime = int(time.clock() // 1)
         pygame.display.set_caption('Minesweaper ' + face + '   ' + str(currentTime) + ' seconds')
         if GameOver:
             gameOver(MINELOCATION, GAMEBOARD, currentSquare)
@@ -82,6 +83,9 @@ def main():
                 mousex, mousey = event.pos
                 boxx, boxy = getBoxAtPixle(mousex, mousey)
                 mouseClicked = True
+            elif event.type == KEYUP and event.key == K_SPACE:
+                mouseClicked = True
+                buttonPressed = 2
         if mouseClicked:
             if buttonPressed == 1:
                 if GAMEBOARD[boxx][boxy] != 0:
@@ -124,7 +128,7 @@ def main():
         FPSCLOCK.tick(FPS)
 
 
-def drawBoard(GAMEBOARD, MINELOCATION, currantSquare):
+def drawBoard(GAMEBOARD, MINELOCATION, currantSquare, gameOver):
     DISPLAYSURF.fill(BGCOLOUR)
     for LINES in range(0, WINDOWWIDTH, SQUARESIZE):
         pygame.draw.line(DISPLAYSURF, BLACK, (LINES, 0), (LINES, WINDOWHEIGHT))
@@ -147,6 +151,15 @@ def drawBoard(GAMEBOARD, MINELOCATION, currantSquare):
         DISPLAYSURF.blit(MouseSquare, (coordx, coordy))
     elif GAMEBOARD[currantSquare[0]][currantSquare[1]] == 0 and MINELOCATION[currantSquare[0]][currantSquare[1]] == "mine":
         DISPLAYSURF.blit(ExplodedMine, (coordx, coordy))
+    elif gameOver:
+        for i in [[1, 1], [1, 0], [1, -1], [0, 1], [0, -1], [-1, 1], [-1, 0], [-1, -1]]:
+            if MINELOCATION[currantSquare[0] + i[0]][currantSquare[1] + i[1]] == "mine":
+                coordx, coordy = getCoordsOfBox(currantSquare[0] + i[0], currantSquare[1] + i[1])
+                DISPLAYSURF.blit(ExplodedMine, (coordx, coordy))
+            elif GAMEBOARD[currantSquare[0] + i[0]][currantSquare[1] + i[1]] == 1:
+                coordx, coordy = getCoordsOfBox(currantSquare[0] + i[0], currantSquare[1] + i[1])
+                DISPLAYSURF.blit(FalseMine, (coordx, coordy))
+
 
 
 def getCoordsOfBox(x, y):
@@ -173,7 +186,7 @@ def gameOver(MINELOCATION, GAMEBOARD, currentSquare):
         for boxY in range(BOARDHEIGHT):
             if MINELOCATION[boxX][boxY] == "mine":
                 GAMEBOARD[boxX][boxY] = 0
-    drawBoard(GAMEBOARD, MINELOCATION, currentSquare)
+    drawBoard(GAMEBOARD, MINELOCATION, currentSquare, True)
     myfont = pygame.font.SysFont("consolas", FONTSIZE)
     message = myfont.render("You Lose", 1, BLACK)
     DISPLAYSURF.blit(message, (20, 20))
@@ -244,7 +257,7 @@ def titleScreen():
             elif event.type == MOUSEBUTTONUP:
                 buttonRect1 = pygame.Rect(100, 120, 200, 50)
                 if buttonRect1.collidepoint(mousex, mousey):
-                    return 10, 10, 12, 35, "Easy"
+                    return 10, 10, 15, 35, "Easy"
                 buttonRect2 = pygame.Rect(100, 200, 200, 50)
                 if buttonRect2.collidepoint(mousex, mousey):
                     return 25, 25, 80, 105, "Medium"
@@ -286,7 +299,7 @@ def checkwin(GAMEBOARD, MINELOCATION, currentSquare):
     myfont = pygame.font.SysFont("consolas", FONTSIZE)
     message = myfont.render("You Win", 1, BLACK)
     i = 0
-    drawBoard(GAMEBOARD, MINELOCATION, currentSquare)
+    drawBoard(GAMEBOARD, MINELOCATION, currentSquare, False)
     display = True
     while True:
         if i % 20 == 0:
